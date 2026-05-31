@@ -104,3 +104,18 @@ export async function fetchGithub(
     activity,
   };
 }
+
+/** The login of the account the token belongs to (GET /user). */
+export async function fetchViewerLogin(token: string): Promise<string | null> {
+  const res = await fetch("https://api.github.com/user", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "User-Agent": "forge-app",
+      Accept: "application/vnd.github+json",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  return (json?.login as string | undefined) ?? null;
+}

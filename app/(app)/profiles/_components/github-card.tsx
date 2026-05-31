@@ -23,17 +23,17 @@ export function GithubCard({
         </div>
       </CardHeader>
       <CardContent>
-        {!hasUsername ? (
+        {!p ? (
           <p className="text-muted-foreground text-sm">
-            Add your GitHub username in{" "}
-            <Link href="/settings" className="underline underline-offset-4">
-              Settings
-            </Link>
-            .
-          </p>
-        ) : !p ? (
-          <p className="text-muted-foreground text-sm">
-            No data yet — click Refresh. (Requires a server-side GITHUB_TOKEN.)
+            {hasUsername
+              ? "No data yet — click Refresh."
+              : "Click Refresh to load your GitHub activity from your token, or set a specific username in "}
+            {!hasUsername ? (
+              <Link href="/settings" className="underline underline-offset-4">
+                Settings
+              </Link>
+            ) : null}
+            {!hasUsername ? "." : ""}
           </p>
         ) : (
           <div className="space-y-5">
