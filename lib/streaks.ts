@@ -1,5 +1,5 @@
 import type { DayKey } from "@/lib/types";
-import { addDays, dayInRange, prevDay, startOfWeek } from "@/lib/date";
+import { addDays, dayInRange, daysBetween, prevDay, startOfWeek } from "@/lib/date";
 import type { ChallengeWindow } from "@/lib/challenges";
 
 /**
@@ -276,3 +276,55 @@ export const xStreak = (
     today,
     challengeWindows,
   });
+
+/**
+ * Longest run ever (independent of `today`). Daily: consecutive calendar days
+ * (a 'rest' day bridges when restAware). Weekly/switching: consecutive
+ * satisfied calendar weeks.
+ */
+export function computeLongestStreak(
+  records: DayRecord[],
+  cadence: Cadence = { kind: "daily" },
+  opts: { restAware?: boolean } = {},
+): number {
+  if (cadence.kind === "weekly" || cadence.kind === "switching") {
+    const weekStartsOn = cadence.weekStartsOn ?? 1;
+    const weeks = [
+      ...new Set(
+        records
+          .filter((r) => r.status === "done")
+          .map((r) => startOfWeek(r.day, weekStartsOn)),
+      ),
+    ].sort();
+    let best = 0;
+    let run = 0;
+    let prev: DayKey | null = null;
+    for (const w of weeks) {
+      run = prev && daysBetween(prev, w) === 7 ? run + 1 : 1;
+      prev = w;
+      best = Math.max(best, run);
+    }
+    return best;
+  }
+
+  const restAware = opts.restAware ?? false;
+  const byDay = new Map(records.map((r) => [r.day, r]));
+  const days = [...byDay.keys()].sort();
+  if (days.length === 0) return 0;
+  const last = days[days.length - 1];
+  let best = 0;
+  let run = 0;
+  // Walk every calendar day in range so a 'rest' day can bridge two 'done' runs.
+  for (let day = days[0]; day <= last; day = addDays(day, 1)) {
+    const rec = byDay.get(day);
+    if (rec?.status === "done") {
+      run += 1;
+      best = Math.max(best, run);
+    } else if (restAware && rec?.status === "rest") {
+      // bridge — hold the run
+    } else {
+      run = 0; // a missing day (or rest when not rest-aware) breaks
+    }
+  }
+  return best;
+}

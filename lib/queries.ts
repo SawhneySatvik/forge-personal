@@ -8,7 +8,10 @@ import type {
   Difficulty,
   DsaProblem,
   HabitKey,
+  ChallengeLog,
   Profile,
+  ProjectMilestone,
+  SideProject,
   SystemDesignTopic,
 } from "@/lib/types";
 import type { DayRecord } from "@/lib/streaks";
@@ -166,4 +169,111 @@ export async function getChallenge(id: string): Promise<Challenge | null> {
     );
   }
   return challenge;
+}
+
+/** Problems logged per day since `since` (for the DSA heatmap; avoids the 200-row list cap). */
+export async function getDsaCountsByDay(
+  since: DayKey,
+): Promise<Record<DayKey, number>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("dsa_problems")
+    .select("date")
+    .gte("date", since);
+  const out: Record<DayKey, number> = {};
+  for (const row of (data as { date: DayKey }[] | null) ?? []) {
+    out[row.date] = (out[row.date] ?? 0) + 1;
+  }
+  return out;
+}
+
+/** Daily check-in logs for one challenge, newest first. */
+export async function getChallengeLogs(
+  challengeId: string,
+): Promise<ChallengeLog[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("challenge_logs")
+    .select("*")
+    .eq("challenge_id", challengeId)
+    .order("date", { ascending: false });
+  return (data as ChallengeLog[] | null) ?? [];
+}
+
+export interface ProjectWithLastMilestone extends SideProject {
+  milestones: Pick<ProjectMilestone, "date" | "note">[];
+}
+
+/** Projects (newest-updated first) each with their single most-recent milestone. */
+export async function listProjectsWithLastMilestone(): Promise<
+  ProjectWithLastMilestone[]
+> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("side_projects")
+    .select("*, milestones:project_milestones(date, note)")
+    .order("updated_at", { ascending: false })
+    .order("date", { ascending: false, referencedTable: "project_milestones" })
+    .limit(1, { referencedTable: "project_milestones" });
+  return (data as ProjectWithLastMilestone[] | null) ?? [];
+}
+
+export interface ProjectWithMilestones extends SideProject {
+  milestones: ProjectMilestone[];
+}
+
+export async function getProject(
+  id: string,
+): Promise<ProjectWithMilestones | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("side_projects")
+    .select("*, milestones:project_milestones(*)")
+    .eq("id", id)
+    .maybeSingle();
+  const project = (data as ProjectWithMilestones | null) ?? null;
+  if (project) {
+    project.milestones = (project.milestones ?? []).sort((a, b) =>
+      a.date !== b.date
+        ? b.date.localeCompare(a.date)
+        : b.created_at.localeCompare(a.created_at),
+    );
+  }
+  return project;
+}
+
+export async function getProfileUsernames(): Promise<{
+  userId: string | null;
+  github: string | null;
+  leetcode: string | null;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data } = await supabase
+    .from("profiles")
+    .select("github_username, leetcode_username")
+    .maybeSingle();
+  return {
+    userId: user?.id ?? null,
+    github: data?.github_username ?? null,
+    leetcode: data?.leetcode_username ?? null,
+  };
+}
+
+/** Most recent cached integration snapshot for `source`, or null. */
+export async function getLatestSnapshot<T>(
+  source: "github" | "leetcode",
+): Promise<{ payload: T; fetchedAt: string } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profile_snapshots")
+    .select("payload, fetched_at")
+    .eq("source", source)
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return { payload: data.payload as T, fetchedAt: data.fetched_at as string };
 }

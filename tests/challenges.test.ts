@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   challengeWindow,
   getChallengeProgress,
+  getChallengeTracking,
   getCurrentPhase,
   isInsideAnyActiveChallenge,
 } from "@/lib/challenges";
@@ -117,5 +118,26 @@ describe("isInsideAnyActiveChallenge", () => {
     expect(
       isInsideAnyActiveChallenge("2026-01-05", [{ ...c, status: "Completed" }]),
     ).toBe(false);
+  });
+});
+
+describe("getChallengeTracking", () => {
+  it("computes check-in streak, done days, and completion %", () => {
+    const t = getChallengeTracking(makeChallenge(), "2026-01-05", [
+      "2026-01-03",
+      "2026-01-04",
+      "2026-01-05",
+    ]);
+    expect(t.streak.count).toBe(3);
+    expect(t.doneDays).toBe(3);
+    expect(t.daysElapsedInWindow).toBe(5); // Jan 1..5 inclusive
+    expect(t.completionPercent).toBe(60); // 3 / 5
+  });
+
+  it("ignores future check-ins and clamps the elapsed window", () => {
+    const t = getChallengeTracking(makeChallenge(), "2026-01-03", ["2026-01-09"]);
+    expect(t.doneDays).toBe(0);
+    expect(t.daysElapsedInWindow).toBe(3);
+    expect(t.completionPercent).toBe(0);
   });
 });

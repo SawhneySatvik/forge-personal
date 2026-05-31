@@ -1,5 +1,6 @@
 import type { Challenge, ChallengePhase, DayKey } from "@/lib/types";
 import { addDays, dayInRange, daysBetween } from "@/lib/date";
+import { computeStreak, type DayRecord, type StreakResult } from "@/lib/streaks";
 
 /**
  * Pure, data-driven challenge engine. A challenge is `start_date` + an ordered
@@ -139,4 +140,56 @@ export function isInsideAnyActiveChallenge(
   return activeWindows(challenges).some((w) =>
     dayInRange(today, w.start, w.end),
   );
+}
+
+export interface ChallengeTracking {
+  streak: StreakResult; // daily streak of check-ins within the window
+  doneDays: number; // distinct in-window days checked in (up to today)
+  daysElapsedInWindow: number; // window days elapsed (<= today)
+  completionPercent: number; // doneDays / daysElapsedInWindow, 0..100
+}
+
+/**
+ * Tracker metrics from challenge_logs check-ins. `checkInDays` = dates with
+ * done=true. Streak is daily over the challenge window; completion% is checked-in
+ * days over elapsed window days.
+ */
+export function getChallengeTracking(
+  challenge: Challenge,
+  today: DayKey,
+  checkInDays: DayKey[],
+): ChallengeTracking {
+  const window = challengeWindow(challenge);
+  if (!window) {
+    return {
+      streak: { count: 0, unit: "days", lastSatisfied: null, pendingCurrent: false },
+      doneDays: 0,
+      daysElapsedInWindow: 0,
+      completionPercent: 0,
+    };
+  }
+  const coverEnd = window.end > today ? today : window.end;
+  const inWindow = checkInDays.filter((d) =>
+    dayInRange(d, window.start, coverEnd),
+  );
+  const doneDays = new Set(inWindow).size;
+  const daysElapsedInWindow =
+    today < window.start ? 0 : daysBetween(window.start, coverEnd) + 1;
+
+  const records: DayRecord[] = inWindow.map((day) => ({ day, status: "done" }));
+  const streakToday = today > window.end ? window.end : today;
+  const streak = computeStreak(records, {
+    cadence: { kind: "daily" },
+    today: streakToday,
+  });
+
+  return {
+    streak,
+    doneDays,
+    daysElapsedInWindow,
+    completionPercent:
+      daysElapsedInWindow === 0
+        ? 0
+        : Math.round((doneDays / daysElapsedInWindow) * 100),
+  };
 }

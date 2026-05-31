@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDays, startOfWeek } from "@/lib/date";
 import {
+  computeLongestStreak,
   type DayRecord,
   dsaStreak,
   gymStreak,
@@ -171,5 +172,38 @@ describe("switching streak (X: daily in challenge, weekly otherwise)", () => {
     const s = xStreak([done(wed)], wed, [win]);
     expect(s.count).toBe(1); // not 2 — the Wed post must not be re-counted weekly
     expect(s.unit).toBe("days");
+  });
+});
+
+describe("computeLongestStreak", () => {
+  const d = (day: string): DayRecord => ({ day, status: "done" });
+
+  it("finds the longest daily run regardless of today", () => {
+    const r = [
+      d("2026-01-01"),
+      d("2026-01-02"),
+      d("2026-01-03"),
+      d("2026-01-10"),
+      d("2026-01-11"),
+    ];
+    expect(computeLongestStreak(r)).toBe(3);
+  });
+
+  it("rest bridges only when restAware", () => {
+    const r: DayRecord[] = [
+      d("2026-01-01"),
+      { day: "2026-01-02", status: "rest" },
+      d("2026-01-03"),
+    ];
+    expect(
+      computeLongestStreak(r, { kind: "daily" }, { restAware: true }),
+    ).toBe(2);
+    expect(computeLongestStreak(r, { kind: "daily" })).toBe(1);
+  });
+
+  it("counts consecutive calendar weeks for weekly cadence", () => {
+    // 2026-01-05, -12 are consecutive Mondays; -26 skips a week.
+    const r = [d("2026-01-05"), d("2026-01-12"), d("2026-01-26")];
+    expect(computeLongestStreak(r, { kind: "weekly" })).toBe(2);
   });
 });
