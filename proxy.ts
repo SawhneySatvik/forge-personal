@@ -8,7 +8,14 @@ import { NextResponse, type NextRequest } from "next/server";
  * Paths reachable without an authenticated session. Everything else redirects
  * to /signin. `/auth/*` covers the email/recovery callback route.
  */
-const PUBLIC_PREFIXES = ["/signin", "/forgot-password", "/update-password", "/auth"];
+const PUBLIC_PREFIXES = [
+  "/signin",
+  "/forgot-password",
+  "/update-password",
+  "/auth",
+  "/u", // public profile pages
+  "/share", // public challenge share links
+];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some(

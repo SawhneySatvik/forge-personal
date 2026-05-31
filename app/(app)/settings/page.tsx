@@ -1,18 +1,31 @@
-import { getProfile } from "@/lib/queries";
+import { PageHeader } from "@/components/page-header";
+import { getProfile, listChallenges } from "@/lib/queries";
 import { ProfileForm } from "./_components/profile-form";
+import { SharingCard } from "./_components/sharing-card";
 
 export default async function SettingsPage() {
-  const profile = await getProfile();
+  const [profile, challenges] = await Promise.all([
+    getProfile(),
+    listChallenges(),
+  ]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground text-sm">
-          Your profile, timezone, and linked accounts.
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Your profile, timezone, linked accounts, and sharing."
+      />
       <ProfileForm initial={profile} />
+      <SharingCard
+        handle={profile?.public_handle ?? null}
+        bio={profile?.public_bio ?? null}
+        isPublic={profile?.is_public ?? false}
+        challenges={challenges.map((c) => ({
+          id: c.id,
+          name: c.name,
+          is_public: c.is_public,
+        }))}
+      />
     </div>
   );
 }
