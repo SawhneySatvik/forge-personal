@@ -17,6 +17,40 @@ export type ChallengeStatus = "Planned" | "Active" | "Completed" | "Abandoned";
 
 export type ProjectStatus = "Active" | "Shipped" | "Paused" | "Killed";
 
+export interface ChallengeLog {
+  id: string;
+  user_id: string;
+  challenge_id: string;
+  date: DayKey;
+  done: boolean;
+  note: string | null;
+  created_at: string;
+}
+
+// --- External integration snapshot payloads (cached in profile_snapshots) ---
+
+export interface GithubRepo {
+  name: string;
+  html_url: string;
+  stargazers_count: number;
+  language: string | null;
+  description: string | null;
+}
+
+export interface GithubSnapshot {
+  totalContributions: number;
+  valueByDay: Record<DayKey, number>;
+  endDay: DayKey;
+  repos: GithubRepo[];
+  activity: { type: string; repo: string | null; created_at: string }[];
+}
+
+export interface LeetcodeSnapshot {
+  username: string;
+  ranking: number | null;
+  solved: { all: number; easy: number; medium: number; hard: number };
+}
+
 export interface Profile {
   user_id: string;
   display_name: string | null;

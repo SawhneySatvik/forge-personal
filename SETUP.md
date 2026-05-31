@@ -45,6 +45,7 @@ Open **SQL Editor** in the Supabase dashboard and run these files from
 | 1 | `0001_init.sql` | Extensions, enums, tables, indexes, `updated_at` trigger |
 | 2 | `0002_rls.sql` | Enables Row Level Security + owner-only policies on every table |
 | 3 | `0004_profile_trigger.sql` | Auto-creates a `profiles` row when a user signs up |
+| 4 | `0005_challenge_logs.sql` | Per-challenge daily check-in table + RLS (challenge tracker) |
 
 Run `0003_seed_sde_sheet.sql` **later** — it must run *while authenticated*
 (it uses `auth.uid()`). See step 6.
