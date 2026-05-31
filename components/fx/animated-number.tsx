@@ -7,16 +7,20 @@ import { cn } from "@/lib/utils";
 /**
  * Count-up numeral. Animates from the previously shown value to `value`.
  * No-ops (renders the final value immediately) under reduced motion.
+ * `prefix`/`suffix` are plain strings so this can be used from Server Components
+ * (a function prop can't cross the server→client boundary).
  */
 export function AnimatedNumber({
   value,
   className,
-  format,
+  prefix = "",
+  suffix = "",
   durationMs = 700,
 }: {
   value: number;
   className?: string;
-  format?: (n: number) => string;
+  prefix?: string;
+  suffix?: string;
   durationMs?: number;
 }) {
   const reduce = useReducedMotion();
@@ -50,7 +54,9 @@ export function AnimatedNumber({
   const rounded = Math.round(display);
   return (
     <span className={cn("font-mono tabular-nums tracking-tight", className)}>
-      {format ? format(rounded) : rounded}
+      {prefix}
+      {rounded}
+      {suffix}
     </span>
   );
 }

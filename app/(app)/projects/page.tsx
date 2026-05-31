@@ -19,7 +19,7 @@ export default async function ProjectsPage() {
             What you&apos;re building, and where each one stands.
           </p>
         </div>
-        <Button render={<Link href="/projects/new" />}>
+        <Button render={<Link href="/projects/new" />} nativeButton={false}>
           <Plus className="size-4" /> New
         </Button>
       </div>

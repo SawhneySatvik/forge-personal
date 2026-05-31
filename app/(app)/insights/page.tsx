@@ -69,7 +69,7 @@ export default async function InsightsPage() {
           <div className="mt-1 flex items-baseline gap-1">
             <AnimatedNumber
               value={consistency}
-              format={(n) => `${n}%`}
+              suffix="%"
               className="text-4xl font-semibold"
             />
           </div>

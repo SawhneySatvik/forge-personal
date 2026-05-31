@@ -35,6 +35,7 @@ export default function ForgotPasswordPage() {
             <Button
               variant="outline"
               className="w-full"
+              nativeButton={false}
               render={<Link href="/signin" />}
             >
               Back to sign in
@@ -66,6 +67,7 @@ export default function ForgotPasswordPage() {
             <Button
               variant="ghost"
               className="w-full"
+              nativeButton={false}
               render={<Link href="/signin" />}
             >
               Back to sign in

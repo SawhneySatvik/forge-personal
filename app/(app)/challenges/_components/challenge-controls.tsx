@@ -78,7 +78,11 @@ export function ChallengeControls({
         </SelectContent>
       </Select>
 
-      <Button variant="outline" render={<Link href={`/challenges/${id}/edit`} />}>
+      <Button
+        variant="outline"
+        nativeButton={false}
+        render={<Link href={`/challenges/${id}/edit`} />}
+      >
         <Pencil className="size-4" /> Edit
       </Button>
 

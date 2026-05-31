@@ -73,7 +73,11 @@ export function ProjectControls({
         </SelectContent>
       </Select>
 
-      <Button variant="outline" render={<Link href={`/projects/${id}/edit`} />}>
+      <Button
+        variant="outline"
+        nativeButton={false}
+        render={<Link href={`/projects/${id}/edit`} />}
+      >
         <Pencil className="size-4" /> Edit
       </Button>
 

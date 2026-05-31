@@ -37,7 +37,7 @@ export default async function ChallengesPage() {
             Structured, multi-phase pushes. Define phases and topics as data.
           </p>
         </div>
-        <Button render={<Link href="/challenges/new" />}>
+        <Button render={<Link href="/challenges/new" />} nativeButton={false}>
           <Plus className="size-4" /> New
         </Button>
       </div>

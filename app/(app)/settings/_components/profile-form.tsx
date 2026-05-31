@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,15 @@ import { updateProfile } from "../actions";
 export function ProfileForm({ initial }: { initial: Profile | null }) {
   const [state, formAction, pending] = useActionState(updateProfile, null);
 
+  // Controlled so the fields don't warn when the server re-renders with new
+  // initial data after a save.
+  const [displayName, setDisplayName] = useState(initial?.display_name ?? "");
+  const [timezone, setTimezone] = useState(initial?.timezone ?? "Asia/Kolkata");
+  const [github, setGithub] = useState(initial?.github_username ?? "");
+  const [leetcode, setLeetcode] = useState(initial?.leetcode_username ?? "");
+  const [linkedin, setLinkedin] = useState(initial?.linkedin_url ?? "");
+  const [xHandle, setXHandle] = useState(initial?.x_handle ?? "");
+
   useEffect(() => {
     if (state?.ok) toast.success("Profile saved.");
     else if (state?.error) toast.error(state.error);
@@ -48,7 +57,8 @@ export function ProfileForm({ initial }: { initial: Profile | null }) {
               <Input
                 id="display_name"
                 name="display_name"
-                defaultValue={initial?.display_name ?? ""}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Satvik"
               />
             </div>
@@ -56,7 +66,8 @@ export function ProfileForm({ initial }: { initial: Profile | null }) {
               <Label>Timezone</Label>
               <Select
                 name="timezone"
-                defaultValue={initial?.timezone ?? "Asia/Kolkata"}
+                value={timezone}
+                onValueChange={(v) => setTimezone(v ?? "Asia/Kolkata")}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -78,7 +89,8 @@ export function ProfileForm({ initial }: { initial: Profile | null }) {
               <Input
                 id="github_username"
                 name="github_username"
-                defaultValue={initial?.github_username ?? ""}
+                value={github}
+                onChange={(e) => setGithub(e.target.value)}
                 placeholder="octocat"
               />
             </div>
@@ -87,7 +99,8 @@ export function ProfileForm({ initial }: { initial: Profile | null }) {
               <Input
                 id="leetcode_username"
                 name="leetcode_username"
-                defaultValue={initial?.leetcode_username ?? ""}
+                value={leetcode}
+                onChange={(e) => setLeetcode(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
@@ -96,7 +109,8 @@ export function ProfileForm({ initial }: { initial: Profile | null }) {
                 id="linkedin_url"
                 name="linkedin_url"
                 type="url"
-                defaultValue={initial?.linkedin_url ?? ""}
+                value={linkedin}
+                onChange={(e) => setLinkedin(e.target.value)}
                 placeholder="https://linkedin.com/in/…"
               />
             </div>
@@ -105,7 +119,8 @@ export function ProfileForm({ initial }: { initial: Profile | null }) {
               <Input
                 id="x_handle"
                 name="x_handle"
-                defaultValue={initial?.x_handle ?? ""}
+                value={xHandle}
+                onChange={(e) => setXHandle(e.target.value)}
                 placeholder="@you"
               />
             </div>
