@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Forge
 
-## Getting Started
+A single-user personal accountability tracker — DSA, system design, gym, and
+social-posting streaks, structured "challenges", side projects, and connected
+GitHub/LeetCode profiles. Built with Next.js 16 (App Router), Supabase, and
+shadcn/ui.
 
-First, run the development server:
+## What works today (Pass 1)
+
+- **Email + password auth** (single user; public signup disabled) with password
+  reset by email.
+- **Daily dashboard** — today's checklist (DSA, system design, gym, X, LinkedIn),
+  per-habit **streaks**, an inline **DSA quick-log** form, and an
+  **active-challenge banner** (current phase + today's topic + progress).
+- **DSA log** page with topic/difficulty/solved filters.
+- **Full database schema + RLS** for every planned feature, plus the **45-day
+  TakeUForward SDE Sheet** challenge seed.
+
+### Streak rules (the interesting part)
+
+Computed by pure, unit-tested functions in `lib/streaks.ts`:
+
+- **DSA / System design** — daily; consecutive days satisfied.
+- **Gym** — daily, but a marked **rest day bridges** the streak (it never breaks
+  it); an *unlogged* day does break it.
+- **LinkedIn** — weekly (calendar weeks, Monday start).
+- **X / Twitter** — **daily while a challenge is active, weekly otherwise**.
+- Across all of them, *today not yet logged* is **pending**, never a break.
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local   # fill in Supabase URL + anon key
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Full instructions (create the Supabase project, run migrations, create your
+user, seed the challenge, deploy) are in **[SETUP.md](./SETUP.md)**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Dev server (Turbopack) |
+| `pnpm build` | Production build + typecheck |
+| `pnpm lint` | ESLint |
+| `pnpm test` | Vitest unit tests (streak + challenge engines) |
 
-## Learn More
+## Roadmap
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pass 2: system design page · gym heatmap · X/LinkedIn social log.
+Pass 3: challenges UI (data-driven phase editor) + settings.
+Pass 4: side projects board + milestone log.
+Pass 5: GitHub contribution graph + LeetCode stats + charts.
