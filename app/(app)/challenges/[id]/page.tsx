@@ -1,18 +1,29 @@
 import { notFound } from "next/navigation";
+import { HabitHeatmap } from "@/components/habit-heatmap";
+import { StreakStat } from "@/components/streak-stat";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Numeral } from "@/components/ui/stat";
-import { getChallengeProgress, getCurrentPhase } from "@/lib/challenges";
+import {
+  challengeWindow,
+  getChallengeProgress,
+  getChallengeTracking,
+  getCurrentPhase,
+  totalDays,
+} from "@/lib/challenges";
 import { addDays, todayInTz } from "@/lib/date";
 import {
   DEFAULT_TIMEZONE,
   getChallenge,
+  getChallengeLogs,
   getDailyLogsSince,
   getProfile,
   habitRecords,
 } from "@/lib/queries";
+import type { DayKey } from "@/lib/types";
 import { ChallengeControls } from "../_components/challenge-controls";
+import { ChallengeDayControl } from "../_components/challenge-day-control";
 import { ChallengeTimeline } from "../_components/challenge-timeline";
 
 export default async function ChallengeDetailPage({
@@ -25,10 +36,24 @@ export default async function ChallengeDetailPage({
   if (!challenge) notFound();
 
   const today = todayInTz(profile?.timezone ?? DEFAULT_TIMEZONE);
-  const logs = await getDailyLogsSince(addDays(today, -400));
+  const [logs, checkLogs] = await Promise.all([
+    getDailyLogsSince(addDays(today, -400)),
+    getChallengeLogs(challenge.id),
+  ]);
+
   const dsaDays = habitRecords(logs, "dsa").map((r) => r.day);
   const progress = getChallengeProgress(challenge, today, dsaDays);
   const phase = getCurrentPhase(challenge, today);
+
+  const checkInDays = checkLogs.filter((l) => l.done).map((l) => l.date);
+  const tracking = getChallengeTracking(challenge, today, checkInDays);
+  const doneToday = checkLogs.some((l) => l.date === today && l.done);
+
+  const win = challengeWindow(challenge);
+  const heatEnd = win && win.end < today ? win.end : today;
+  const heatWeeks = Math.max(8, Math.ceil(totalDays(challenge) / 7) + 1);
+  const checkValueByDay: Record<DayKey, number> = {};
+  for (const d of checkInDays) checkValueByDay[d] = 1;
 
   return (
     <div className="space-y-6">
@@ -55,6 +80,33 @@ export default async function ChallengeDetailPage({
           ) : null}
         </div>
         <ChallengeControls id={challenge.id} status={challenge.status} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <StreakStat
+          label="Check-in streak"
+          result={tracking.streak}
+          hint={`${tracking.completionPercent}% of elapsed days`}
+        />
+        <Card>
+          <CardContent className="flex h-full flex-col items-start justify-between gap-3 p-4">
+            <div>
+              <p className="text-muted-foreground text-xs font-medium">
+                Today&apos;s check-in
+              </p>
+              <p className="mt-1 text-sm">
+                {doneToday ? "Checked in for today ✓" : "Not checked in yet"}
+              </p>
+            </div>
+            <ChallengeDayControl
+              challengeId={challenge.id}
+              today={today}
+              initialDone={doneToday}
+              streakCount={tracking.streak.count}
+              pendingToday={tracking.streak.pendingCurrent}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -95,8 +147,25 @@ export default async function ChallengeDetailPage({
           <Progress value={progress.percentElapsed} />
           <p className="text-muted-foreground text-xs">
             <Numeral>{progress.percentElapsed}%</Numeral> elapsed ·{" "}
-            <Numeral>{progress.topicsCovered}</Numeral> active days logged
+            <Numeral>{tracking.doneDays}</Numeral>/
+            <Numeral>{tracking.daysElapsedInWindow}</Numeral> days checked in
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Check-in heatmap</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HabitHeatmap
+            mode="count"
+            valueByDay={checkValueByDay}
+            max={1}
+            endDay={heatEnd}
+            weeks={heatWeeks}
+            legend={false}
+          />
         </CardContent>
       </Card>
 

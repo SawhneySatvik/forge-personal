@@ -199,3 +199,27 @@ export async function setChallengeStatus(
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+/** Mark (or clear) a single day's check-in for a challenge. */
+export async function setChallengeDay(
+  challengeId: string,
+  date: string,
+  done: boolean,
+): Promise<ActionResult> {
+  if (!isDayKey(date)) return { ok: false, error: "Invalid date." };
+  const { supabase, userId } = await getAuth();
+  if (!userId) return { ok: false, error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("challenge_logs")
+    .upsert(
+      { user_id: userId, challenge_id: challengeId, date, done },
+      { onConflict: "user_id,challenge_id,date" },
+    );
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/challenges");
+  revalidatePath(`/challenges/${challengeId}`);
+  return { ok: true };
+}

@@ -114,7 +114,25 @@ export async function logDsaProblem(
     );
   if (logError) return { error: logError.message };
 
+  // Auto check-in the challenge for this day when the problem belongs to one.
+  if (v.challenge_id) {
+    const { error: chError } = await supabase
+      .from("challenge_logs")
+      .upsert(
+        {
+          user_id: user.id,
+          challenge_id: v.challenge_id,
+          date: v.date,
+          done: true,
+        },
+        { onConflict: "user_id,challenge_id,date" },
+      );
+    if (chError) return { error: chError.message };
+    revalidatePath(`/challenges/${v.challenge_id}`);
+  }
+
   revalidatePath("/dashboard");
   revalidatePath("/dsa");
+  revalidatePath("/challenges");
   return { ok: true, id: inserted.id as string };
 }
