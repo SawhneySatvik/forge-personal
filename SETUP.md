@@ -46,9 +46,14 @@ Open **SQL Editor** in the Supabase dashboard and run these files from
 | 2 | `0002_rls.sql` | Enables Row Level Security + owner-only policies on every table |
 | 3 | `0004_profile_trigger.sql` | Auto-creates a `profiles` row when a user signs up |
 | 4 | `0005_challenge_logs.sql` | Per-challenge daily check-in table + RLS (challenge tracker) |
+| 5 | `0006_checklist_and_sharing.sql` | Checklist challenges + `challenge_items`, public-sharing flags + anon read policies |
 
-Run `0003_seed_sde_sheet.sql` **later** — it must run *while authenticated*
-(it uses `auth.uid()`). See step 6.
+Run the two **seed** migrations **later** — they must run *while authenticated*
+(they use `auth.uid()`). See step 6:
+
+- `0003_seed_sde_sheet.sql` — the original 45-day cadence skeleton (optional).
+- `0007_seed_sde_questions.sql` — the **190-question Striver SDE Sheet** checklist
+  challenge. Requires `0006`. Idempotent (safe to re-run).
 
 > Copy-paste each file's contents into a new SQL Editor query and click **Run**.
 

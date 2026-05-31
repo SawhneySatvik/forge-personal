@@ -1,6 +1,7 @@
 import { AnimatedNumber } from "@/components/fx/animated-number";
 import { GlowCard } from "@/components/fx/glow-card";
 import { HabitHeatmap } from "@/components/habit-heatmap";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Numeral } from "@/components/ui/stat";
 import {
@@ -54,12 +55,10 @@ export default async function InsightsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Insights</h1>
-        <p className="text-muted-foreground text-sm">
-          How consistently you&apos;re showing up, and where the effort goes.
-        </p>
-      </div>
+      <PageHeader
+        title="Insights"
+        description="How consistently you're showing up, and where the effort goes."
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <GlowCard className="flex flex-col justify-center p-5">

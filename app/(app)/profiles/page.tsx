@@ -1,3 +1,5 @@
+import { PageHeader } from "@/components/page-header";
+import { SyncLeetcodeButton } from "@/components/sync-leetcode-button";
 import { getLatestSnapshot, getProfile } from "@/lib/queries";
 import type { GithubSnapshot, LeetcodeSnapshot } from "@/lib/types";
 import { GithubCard } from "./_components/github-card";
@@ -13,13 +15,12 @@ export default async function ProfilesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profiles</h1>
-        <p className="text-muted-foreground text-sm">
-          Your GitHub and LeetCode activity. Set usernames in Settings, then
-          Refresh.
-        </p>
-      </div>
+      <PageHeader
+        title="Profiles"
+        description="Your GitHub and LeetCode activity. Set usernames in Settings, then Refresh."
+      >
+        <SyncLeetcodeButton />
+      </PageHeader>
 
       <SocialLinks
         x={profile?.x_handle ?? null}

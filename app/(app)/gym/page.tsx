@@ -1,4 +1,5 @@
 import { HabitHeatmap } from "@/components/habit-heatmap";
+import { PageHeader } from "@/components/page-header";
 import { StreakStat } from "@/components/streak-stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Numeral } from "@/components/ui/stat";
@@ -31,12 +32,10 @@ export default async function GymPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Gym</h1>
-        <p className="text-muted-foreground text-sm">
-          Went or didn&apos;t. A marked rest day keeps your streak alive.
-        </p>
-      </div>
+      <PageHeader
+        title="Gym"
+        description="Went or didn't. A marked rest day keeps your streak alive."
+      />
 
       <StreakStat
         label="Gym streak"

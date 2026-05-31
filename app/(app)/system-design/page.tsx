@@ -1,4 +1,5 @@
 import { HabitHeatmap } from "@/components/habit-heatmap";
+import { PageHeader } from "@/components/page-header";
 import { StreakStat } from "@/components/streak-stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { addDays, todayInTz } from "@/lib/date";
@@ -32,12 +33,10 @@ export default async function SystemDesignPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">System Design</h1>
-        <p className="text-muted-foreground text-sm">
-          One topic per evening. Check it off when you&apos;ve covered it.
-        </p>
-      </div>
+      <PageHeader
+        title="System Design"
+        description="One topic per evening. Check it off when you've covered it."
+      />
 
       <StreakStat
         label="System design streak"

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { listProjectsWithLastMilestone } from "@/lib/queries";
 import type { ProjectStatus } from "@/lib/types";
@@ -12,22 +14,20 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground text-sm">
-            What you&apos;re building, and where each one stands.
-          </p>
-        </div>
+      <PageHeader
+        title="Projects"
+        description="What you're building, and where each one stands."
+      >
         <Button render={<Link href="/projects/new" />} nativeButton={false}>
           <Plus className="size-4" /> New
         </Button>
-      </div>
+      </PageHeader>
 
       {projects.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border p-6 text-center text-sm">
-          No projects yet. Add one to start tracking it.
-        </p>
+        <EmptyState
+          title="No projects yet"
+          description="Add one to start tracking it."
+        />
       ) : (
         ORDER.map((status) => {
           const group = projects.filter((p) => p.status === status);
