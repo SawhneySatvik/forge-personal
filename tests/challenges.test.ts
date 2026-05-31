@@ -3,8 +3,11 @@ import {
   challengeWindow,
   getChallengeProgress,
   getChallengeTracking,
+  getChecklistProgress,
   getCurrentPhase,
+  isChecklist,
   isInsideAnyActiveChallenge,
+  type ChecklistItemLite,
 } from "@/lib/challenges";
 import type { Challenge, ChallengePhase } from "@/lib/types";
 
@@ -35,6 +38,8 @@ function makeChallenge(): Challenge {
     start_date: "2026-01-01",
     end_date: null,
     status: "Active",
+    kind: "cadence",
+    is_public: false,
     created_at: "",
     updated_at: "",
     phases: [
@@ -42,6 +47,14 @@ function makeChallenge(): Challenge {
       phase("Binary Search", 4, 2, ["b1"]),
     ],
   };
+}
+
+function item(
+  section: string,
+  difficulty: ChecklistItemLite["difficulty"],
+  done: boolean,
+): ChecklistItemLite {
+  return { section, difficulty, done };
 }
 
 describe("getCurrentPhase", () => {
@@ -139,5 +152,82 @@ describe("getChallengeTracking", () => {
     expect(t.doneDays).toBe(0);
     expect(t.daysElapsedInWindow).toBe(3);
     expect(t.completionPercent).toBe(0);
+  });
+});
+
+describe("isChecklist", () => {
+  it("is true only for checklist-kind challenges", () => {
+    expect(isChecklist(makeChallenge())).toBe(false);
+    expect(isChecklist({ ...makeChallenge(), kind: "checklist" })).toBe(true);
+  });
+});
+
+describe("getChecklistProgress", () => {
+  it("returns an all-zero shape for an empty list", () => {
+    const p = getChecklistProgress([]);
+    expect(p).toEqual({
+      total: 0,
+      done: 0,
+      percent: 0,
+      bySection: [],
+      byDifficulty: {
+        Easy: { done: 0, total: 0 },
+        Medium: { done: 0, total: 0 },
+        Hard: { done: 0, total: 0 },
+        Unknown: { done: 0, total: 0 },
+      },
+    });
+  });
+
+  it("reports 100% when everything is done", () => {
+    const items = [
+      item("Arrays", "Easy", true),
+      item("Arrays", "Medium", true),
+    ];
+    const p = getChecklistProgress(items);
+    expect(p.total).toBe(2);
+    expect(p.done).toBe(2);
+    expect(p.percent).toBe(100);
+    expect(p.bySection).toEqual([{ section: "Arrays", done: 2, total: 2 }]);
+  });
+
+  it("aggregates by section in first-seen order", () => {
+    const items = [
+      item("Arrays", "Easy", true),
+      item("Arrays", "Medium", false),
+      item("Trees", "Hard", true),
+      item("Arrays", "Medium", true),
+      item("Trees", "Medium", false),
+    ];
+    const p = getChecklistProgress(items);
+    expect(p.done).toBe(3);
+    expect(p.percent).toBe(60); // 3 / 5
+    expect(p.bySection).toEqual([
+      { section: "Arrays", done: 2, total: 3 },
+      { section: "Trees", done: 1, total: 2 },
+    ]);
+  });
+
+  it("buckets difficulty and routes null to Unknown", () => {
+    const items = [
+      item("S", "Easy", true),
+      item("S", "Medium", false),
+      item("S", "Hard", true),
+      item("S", null, true),
+    ];
+    const p = getChecklistProgress(items);
+    expect(p.byDifficulty.Easy).toEqual({ done: 1, total: 1 });
+    expect(p.byDifficulty.Medium).toEqual({ done: 0, total: 1 });
+    expect(p.byDifficulty.Hard).toEqual({ done: 1, total: 1 });
+    expect(p.byDifficulty.Unknown).toEqual({ done: 1, total: 1 });
+  });
+
+  it("rounds the percent (1 of 3 -> 33)", () => {
+    const items = [
+      item("S", "Easy", true),
+      item("S", "Easy", false),
+      item("S", "Easy", false),
+    ];
+    expect(getChecklistProgress(items).percent).toBe(33);
   });
 });

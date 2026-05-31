@@ -1,4 +1,4 @@
-import type { Challenge, ChallengePhase, DayKey } from "@/lib/types";
+import type { Challenge, ChallengePhase, DayKey, Difficulty } from "@/lib/types";
 import { addDays, dayInRange, daysBetween } from "@/lib/date";
 import { computeStreak, type DayRecord, type StreakResult } from "@/lib/streaks";
 
@@ -29,6 +29,10 @@ export interface ChallengeProgress {
   topicsCovered: number; // distinct in-window days the habit was satisfied
   isActiveToday: boolean;
   window: ChallengeWindow | null;
+}
+
+export function isChecklist(challenge: Challenge): boolean {
+  return challenge.kind === "checklist";
 }
 
 function sortedPhases(challenge: Challenge): ChallengePhase[] {
@@ -191,5 +195,78 @@ export function getChallengeTracking(
       daysElapsedInWindow === 0
         ? 0
         : Math.round((doneDays / daysElapsedInWindow) * 100),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Checklist challenges (e.g. the SDE Sheet): progress is items-done / total,
+// not calendar-based. Pure: takes only the projected fields it needs.
+// ---------------------------------------------------------------------------
+
+export interface ChecklistItemLite {
+  section: string;
+  difficulty: Difficulty | null;
+  done: boolean;
+}
+
+export type DifficultyBucket = Difficulty | "Unknown";
+
+export interface ChecklistProgress {
+  total: number;
+  done: number;
+  percent: number; // round(done/total * 100), 0 when total is 0
+  bySection: { section: string; done: number; total: number }[]; // first-seen order
+  byDifficulty: Record<DifficultyBucket, { done: number; total: number }>;
+}
+
+const DIFFICULTY_BUCKETS: DifficultyBucket[] = [
+  "Easy",
+  "Medium",
+  "Hard",
+  "Unknown",
+];
+
+/**
+ * Completion stats for a checklist challenge. Items are counted once each;
+ * sections keep their first-seen order (matching the seeded sheet order).
+ */
+export function getChecklistProgress(
+  items: ChecklistItemLite[],
+): ChecklistProgress {
+  const byDifficulty = Object.fromEntries(
+    DIFFICULTY_BUCKETS.map((b) => [b, { done: 0, total: 0 }]),
+  ) as Record<DifficultyBucket, { done: number; total: number }>;
+
+  const sectionOrder: string[] = [];
+  const sectionMap = new Map<string, { done: number; total: number }>();
+
+  let done = 0;
+  for (const item of items) {
+    if (item.done) done += 1;
+
+    const bucket: DifficultyBucket = item.difficulty ?? "Unknown";
+    byDifficulty[bucket].total += 1;
+    if (item.done) byDifficulty[bucket].done += 1;
+
+    let s = sectionMap.get(item.section);
+    if (!s) {
+      s = { done: 0, total: 0 };
+      sectionMap.set(item.section, s);
+      sectionOrder.push(item.section);
+    }
+    s.total += 1;
+    if (item.done) s.done += 1;
+  }
+
+  const total = items.length;
+  return {
+    total,
+    done,
+    percent: total === 0 ? 0 : Math.round((done / total) * 100),
+    bySection: sectionOrder.map((section) => ({
+      section,
+      ...sectionMap.get(section)!,
+    })),
+    byDifficulty,
   };
 }

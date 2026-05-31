@@ -3,12 +3,14 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Challenge,
+  ChallengeItem,
   DailyLog,
   DayKey,
   Difficulty,
   DsaProblem,
   HabitKey,
   ChallengeLog,
+  LeetcodeCalendarSnapshot,
   Profile,
   ProjectMilestone,
   SideProject,
@@ -187,6 +189,55 @@ export async function getDsaCountsByDay(
   return out;
 }
 
+/** Canonical items (questions) for a checklist challenge, in sheet order. */
+export async function getChallengeItems(
+  challengeId: string,
+): Promise<ChallengeItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("challenge_items")
+    .select("*")
+    .eq("challenge_id", challengeId)
+    .order("sort_order", { ascending: true });
+  return (data as ChallengeItem[] | null) ?? [];
+}
+
+/**
+ * Merged DSA activity intensity per day for the heatmap. Per day:
+ *   count = leetcodeCalendarCount ?? (manual dsa_problems + checklist items done)
+ * LeetCode is authoritative when synced, so the same solve is never summed
+ * twice across sources. Drives the `/dsa` heatmap.
+ */
+export async function getDsaHeatmap(
+  since: DayKey,
+): Promise<Record<DayKey, number>> {
+  const supabase = await createClient();
+  const [{ data: dsaRows }, { data: itemRows }, leetcode] = await Promise.all([
+    supabase.from("dsa_problems").select("date").gte("date", since),
+    supabase
+      .from("challenge_items")
+      .select("done_date")
+      .eq("done", true)
+      .gte("done_date", since),
+    getLatestSnapshot<LeetcodeCalendarSnapshot>("leetcode_calendar"),
+  ]);
+
+  const local: Record<DayKey, number> = {};
+  for (const row of (dsaRows as { date: DayKey }[] | null) ?? []) {
+    local[row.date] = (local[row.date] ?? 0) + 1;
+  }
+  for (const row of (itemRows as { done_date: DayKey | null }[] | null) ?? []) {
+    if (row.done_date) local[row.done_date] = (local[row.done_date] ?? 0) + 1;
+  }
+
+  const leetByDay = leetcode?.payload.countByDay ?? {};
+  const out: Record<DayKey, number> = { ...local };
+  for (const [day, count] of Object.entries(leetByDay)) {
+    if (day >= since && count > 0) out[day] = count; // LeetCode wins when present
+  }
+  return out;
+}
+
 /** Daily check-in logs for one challenge, newest first. */
 export async function getChallengeLogs(
   challengeId: string,
@@ -264,7 +315,7 @@ export async function getProfileUsernames(): Promise<{
 
 /** Most recent cached integration snapshot for `source`, or null. */
 export async function getLatestSnapshot<T>(
-  source: "github" | "leetcode",
+  source: "github" | "leetcode" | "leetcode_calendar",
 ): Promise<{ payload: T; fetchedAt: string } | null> {
   const supabase = await createClient();
   const { data } = await supabase

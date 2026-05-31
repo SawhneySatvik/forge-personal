@@ -15,6 +15,16 @@ export type Difficulty = "Easy" | "Medium" | "Hard";
 
 export type ChallengeStatus = "Planned" | "Active" | "Completed" | "Abandoned";
 
+/** A `cadence` challenge tracks daily check-ins; a `checklist` challenge tracks
+ * completion of a fixed set of `challenge_items` (e.g. the SDE Sheet). */
+export type ChallengeKind = "cadence" | "checklist";
+
+export type ItemSource =
+  | "leetcode"
+  | "geeksforgeeks"
+  | "interviewbit"
+  | "codingninjas";
+
 export type ProjectStatus = "Active" | "Shipped" | "Paused" | "Killed";
 
 export interface ChallengeLog {
@@ -51,6 +61,14 @@ export interface LeetcodeSnapshot {
   solved: { all: number; easy: number; medium: number; hard: number };
 }
 
+/** Per-day accepted-submission counts pulled from LeetCode's submission
+ * calendar, keyed by DayKey in the user's timezone. Cached under
+ * `profile_snapshots.source = 'leetcode_calendar'`. */
+export interface LeetcodeCalendarSnapshot {
+  countByDay: Record<DayKey, number>;
+  syncedThroughDay: DayKey;
+}
+
 export interface Profile {
   user_id: string;
   display_name: string | null;
@@ -60,6 +78,9 @@ export interface Profile {
   linkedin_url: string | null;
   x_handle: string | null;
   settings: Record<string, unknown>;
+  public_handle: string | null;
+  is_public: boolean;
+  public_bio: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -117,6 +138,24 @@ export interface ChallengePhase {
   created_at: string;
 }
 
+export interface ChallengeItem {
+  id: string;
+  user_id: string;
+  challenge_id: string;
+  section: string;
+  sort_order: number;
+  title: string;
+  difficulty: Difficulty | null;
+  url: string | null;
+  source: ItemSource | null;
+  external_ref: string | null;
+  done: boolean;
+  done_date: DayKey | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Challenge {
   id: string;
   user_id: string;
@@ -125,6 +164,8 @@ export interface Challenge {
   start_date: DayKey | null;
   end_date: DayKey | null;
   status: ChallengeStatus;
+  kind: ChallengeKind;
+  is_public: boolean;
   created_at: string;
   updated_at: string;
   /** Joined separately by query helpers; ordered by `sort_order`. */

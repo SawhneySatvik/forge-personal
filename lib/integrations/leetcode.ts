@@ -52,3 +52,38 @@ export async function fetchLeetcode(
     },
   };
 }
+
+const CALENDAR_QUERY = `
+query($username: String!) {
+  matchedUser(username: $username) {
+    userCalendar { submissionCalendar }
+  }
+}`;
+
+/**
+ * Fetch the raw submission calendar (UTC-unix-seconds → count) for the active
+ * year. Server-side only. Throws on failure. Map it with
+ * `submissionCalendarToCountByDay` to get per-day counts in the user's tz.
+ */
+export async function fetchLeetcodeCalendar(
+  username: string,
+): Promise<Record<string, number>> {
+  const res = await fetch(GRAPHQL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Referer: "https://leetcode.com",
+      "User-Agent": "Mozilla/5.0 (forge-app)",
+    },
+    body: JSON.stringify({ query: CALENDAR_QUERY, variables: { username } }),
+    cache: "no-store",
+  });
+  const json = await res.json();
+  const raw = json?.data?.matchedUser?.userCalendar?.submissionCalendar;
+  if (raw == null) throw new Error("LeetCode user not found or endpoint changed.");
+  try {
+    return JSON.parse(raw) as Record<string, number>;
+  } catch {
+    throw new Error("LeetCode returned an unexpected calendar format.");
+  }
+}
