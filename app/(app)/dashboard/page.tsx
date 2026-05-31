@@ -1,6 +1,9 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { BentoGrid, BentoItem } from "@/components/fx/bento-grid";
 import { GlowCard } from "@/components/fx/glow-card";
 import { HabitHeatmap } from "@/components/habit-heatmap";
+import { SdeProgress } from "@/components/sde-progress";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,12 +13,15 @@ import {
   activeWindows,
   getChallengeProgress,
   getChallengeTracking,
+  getChecklistProgress,
   getCurrentPhase,
+  isChecklist,
 } from "@/lib/challenges";
 import { addDays, todayInTz } from "@/lib/date";
 import {
   DEFAULT_TIMEZONE,
   getActiveChallenges,
+  getChallengeItems,
   getChallengeLogs,
   getDailyLogsSince,
   getProfile,
@@ -95,20 +101,40 @@ export default async function DashboardPage() {
     ]),
   );
 
-  const activeChallenge = challenges[0] ?? null;
-  const phase = activeChallenge ? getCurrentPhase(activeChallenge, today) : null;
-  const progress = activeChallenge
-    ? getChallengeProgress(activeChallenge, today, dsaDays)
+  // There can be both an active checklist (e.g. the SDE Sheet) and an active
+  // cadence challenge — show a banner for each.
+  const activeChecklist = challenges.find(isChecklist) ?? null;
+  const activeCadence = challenges.find((c) => !isChecklist(c)) ?? null;
+
+  const checklistItems = activeChecklist
+    ? await getChallengeItems(activeChecklist.id)
+    : [];
+  const checklistProgress = activeChecklist
+    ? getChecklistProgress(checklistItems)
+    : null;
+  const sheetItems = checklistItems
+    .filter((i) => !i.done)
+    .map((i) => ({
+      id: i.id,
+      title: i.title,
+      url: i.url,
+      difficulty: i.difficulty,
+      section: i.section,
+    }));
+
+  const phase = activeCadence ? getCurrentPhase(activeCadence, today) : null;
+  const progress = activeCadence
+    ? getChallengeProgress(activeCadence, today, dsaDays)
     : null;
 
-  const activeChallengeLogs = activeChallenge
-    ? await getChallengeLogs(activeChallenge.id)
+  const activeChallengeLogs = activeCadence
+    ? await getChallengeLogs(activeCadence.id)
     : [];
   const challengeCheckIns = activeChallengeLogs
     .filter((l) => l.done)
     .map((l) => l.date);
-  const tracking = activeChallenge
-    ? getChallengeTracking(activeChallenge, today, challengeCheckIns)
+  const tracking = activeCadence
+    ? getChallengeTracking(activeCadence, today, challengeCheckIns)
     : null;
   const challengeDoneToday = activeChallengeLogs.some(
     (l) => l.date === today && l.done,
@@ -130,11 +156,31 @@ export default async function DashboardPage() {
 
       <StreakCards items={streaks} />
 
-      {activeChallenge && progress ? (
+      {activeChecklist && checklistProgress ? (
+        <GlowCard>
+          <div className="flex items-center justify-between gap-2 px-5 pt-4">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">{activeChecklist.name}</CardTitle>
+              <Badge variant="secondary" className="font-mono tabular-nums">
+                {checklistProgress.done}/{checklistProgress.total}
+              </Badge>
+            </div>
+            <Link
+              href={`/challenges/${activeChecklist.id}`}
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+            >
+              Open sheet <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+          <SdeProgress progress={checklistProgress} className="pt-3" />
+        </GlowCard>
+      ) : null}
+
+      {activeCadence && progress ? (
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-base">{activeChallenge.name}</CardTitle>
+              <CardTitle className="text-base">{activeCadence.name}</CardTitle>
               <Badge variant="secondary" className="font-mono tabular-nums">
                 Day {Math.min(progress.daysElapsed, progress.totalDays)} /{" "}
                 {progress.totalDays}
@@ -176,7 +222,7 @@ export default async function DashboardPage() {
                   <Numeral>{tracking.daysElapsedInWindow}</Numeral> days done
                 </p>
                 <ChallengeDayControl
-                  challengeId={activeChallenge.id}
+                  challengeId={activeCadence.id}
                   today={today}
                   initialDone={challengeDoneToday}
                   streakCount={tracking.streak.count}
@@ -216,7 +262,11 @@ export default async function DashboardPage() {
           />
         </BentoItem>
         <BentoItem span={3}>
-          <QuickLogDsa today={today} challengeId={activeChallenge?.id ?? null} />
+          <QuickLogDsa
+            today={today}
+            challengeId={activeCadence?.id ?? null}
+            sheetItems={sheetItems}
+          />
         </BentoItem>
       </BentoGrid>
 

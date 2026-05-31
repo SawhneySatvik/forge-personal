@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { GlowCard } from "@/components/fx/glow-card";
 import { HabitHeatmap } from "@/components/habit-heatmap";
+import { SdeProgress } from "@/components/sde-progress";
 import { StreakStat } from "@/components/streak-stat";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +11,16 @@ import {
   challengeWindow,
   getChallengeProgress,
   getChallengeTracking,
+  getChecklistProgress,
   getCurrentPhase,
+  isChecklist,
   totalDays,
 } from "@/lib/challenges";
 import { addDays, todayInTz } from "@/lib/date";
 import {
   DEFAULT_TIMEZONE,
   getChallenge,
+  getChallengeItems,
   getChallengeLogs,
   getDailyLogsSince,
   getProfile,
@@ -25,6 +30,7 @@ import type { DayKey } from "@/lib/types";
 import { ChallengeControls } from "../_components/challenge-controls";
 import { ChallengeDayControl } from "../_components/challenge-day-control";
 import { ChallengeTimeline } from "../_components/challenge-timeline";
+import { SdeChecklist, type ChecklistRow } from "./_components/sde-checklist";
 
 export default async function ChallengeDetailPage({
   params,
@@ -36,6 +42,84 @@ export default async function ChallengeDetailPage({
   if (!challenge) notFound();
 
   const today = todayInTz(profile?.timezone ?? DEFAULT_TIMEZONE);
+
+  const header = (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {challenge.name}
+          </h1>
+          <Badge variant={challenge.status === "Active" ? "default" : "outline"}>
+            {challenge.status}
+          </Badge>
+        </div>
+        {challenge.description ? (
+          <p className="text-muted-foreground mt-1 text-sm">
+            {challenge.description}
+          </p>
+        ) : null}
+        {challenge.start_date ? (
+          <p className="text-muted-foreground mt-1 font-mono text-xs tabular-nums">
+            {challenge.start_date}
+            {challenge.end_date ? ` → ${challenge.end_date}` : ""}
+          </p>
+        ) : null}
+      </div>
+      <ChallengeControls
+        id={challenge.id}
+        status={challenge.status}
+        isPublic={challenge.is_public}
+      />
+    </div>
+  );
+
+  // ---- Checklist challenges (e.g. the SDE Sheet): items-done progress ----
+  if (isChecklist(challenge)) {
+    const items = await getChallengeItems(challenge.id);
+    const progress = getChecklistProgress(items);
+    const rows: ChecklistRow[] = items.map((it) => ({
+      id: it.id,
+      section: it.section,
+      title: it.title,
+      difficulty: it.difficulty,
+      url: it.url,
+      source: it.source,
+      done: it.done,
+    }));
+    const valueByDay: Record<DayKey, number> = {};
+    for (const it of items) {
+      if (it.done && it.done_date)
+        valueByDay[it.done_date] = (valueByDay[it.done_date] ?? 0) + 1;
+    }
+
+    return (
+      <div className="space-y-6">
+        {header}
+        <GlowCard>
+          <SdeProgress progress={progress} />
+        </GlowCard>
+        {Object.keys(valueByDay).length ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Solved per day</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <HabitHeatmap
+                mode="count"
+                valueByDay={valueByDay}
+                max={5}
+                endDay={today}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+        <SdeChecklist items={rows} />
+      </div>
+    );
+  }
+
+  // ---- Cadence challenges: daily check-ins (existing behavior) ----
   const [logs, checkLogs] = await Promise.all([
     getDailyLogsSince(addDays(today, -400)),
     getChallengeLogs(challenge.id),
@@ -57,30 +141,7 @@ export default async function ChallengeDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {challenge.name}
-            </h1>
-            <Badge variant={challenge.status === "Active" ? "default" : "outline"}>
-              {challenge.status}
-            </Badge>
-          </div>
-          {challenge.description ? (
-            <p className="text-muted-foreground mt-1 text-sm">
-              {challenge.description}
-            </p>
-          ) : null}
-          {challenge.start_date ? (
-            <p className="text-muted-foreground mt-1 font-mono text-xs tabular-nums">
-              {challenge.start_date}
-              {challenge.end_date ? ` → ${challenge.end_date}` : ""}
-            </p>
-          ) : null}
-        </div>
-        <ChallengeControls id={challenge.id} status={challenge.status} />
-      </div>
+      {header}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <StreakStat

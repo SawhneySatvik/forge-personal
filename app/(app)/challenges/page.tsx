@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import {
+  getChecklistProgress,
+  isChecklist,
+  type ChecklistProgress,
+} from "@/lib/challenges";
 import { addDays, todayInTz } from "@/lib/date";
 import {
   DEFAULT_TIMEZONE,
+  getChallengeItems,
   getDailyLogsSince,
   getProfile,
   habitRecords,
@@ -28,24 +36,32 @@ export default async function ChallengesPage() {
   ]);
   const dsaDays = habitRecords(logs, "dsa").map((r) => r.day);
 
+  // Checklist challenges show items-done progress instead of calendar progress.
+  const checklistProgress: Record<string, ChecklistProgress> = {};
+  await Promise.all(
+    challenges.filter(isChecklist).map(async (c) => {
+      checklistProgress[c.id] = getChecklistProgress(
+        await getChallengeItems(c.id),
+      );
+    }),
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Challenges</h1>
-          <p className="text-muted-foreground text-sm">
-            Structured, multi-phase pushes. Define phases and topics as data.
-          </p>
-        </div>
+      <PageHeader
+        title="Challenges"
+        description="Structured pushes — a checklist sheet or a daily-cadence streak."
+      >
         <Button render={<Link href="/challenges/new" />} nativeButton={false}>
           <Plus className="size-4" /> New
         </Button>
-      </div>
+      </PageHeader>
 
       {challenges.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border p-6 text-center text-sm">
-          No challenges yet. Create one to structure a focused push.
-        </p>
+        <EmptyState
+          title="No challenges yet"
+          description="Create one to structure a focused push."
+        />
       ) : (
         ORDER.map((status) => {
           const group = challenges.filter((c) => c.status === status);
@@ -62,6 +78,7 @@ export default async function ChallengesPage() {
                     challenge={c}
                     today={today}
                     satisfiedDays={dsaDays}
+                    checklist={checklistProgress[c.id]}
                   />
                 ))}
               </div>
