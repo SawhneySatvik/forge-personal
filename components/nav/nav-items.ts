@@ -1,11 +1,14 @@
 import {
   Code2,
   Dumbbell,
+  FolderGit2,
   LayoutDashboard,
+  LineChart,
   Network,
   Settings,
   Share2,
   Trophy,
+  UserRound,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
@@ -24,5 +27,8 @@ export const NAV: NavItem[] = [
   { href: "/gym", label: "Gym", icon: Dumbbell, primary: true },
   { href: "/social", label: "Social", icon: Share2, primary: false },
   { href: "/challenges", label: "Challenges", icon: Trophy, primary: false },
+  { href: "/insights", label: "Insights", icon: LineChart, primary: false },
+  { href: "/projects", label: "Projects", icon: FolderGit2, primary: false },
+  { href: "/profiles", label: "Profiles", icon: UserRound, primary: false },
   { href: "/settings", label: "Settings", icon: Settings, primary: false },
 ];

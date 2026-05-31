@@ -1,6 +1,8 @@
 import { Flame } from "lucide-react";
+import { isMilestone } from "@/components/celebrate";
+import { AnimatedNumber } from "@/components/fx/animated-number";
+import { Sparkles } from "@/components/fx/sparkles";
 import { Card, CardContent } from "@/components/ui/card";
-import { Numeral } from "@/components/ui/stat";
 import type { StreakResult } from "@/lib/streaks";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +23,10 @@ export function StreakStat({
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs font-medium">{label}</p>
           <div className="mt-1 flex items-baseline gap-1">
-            <Numeral className="text-3xl font-semibold">{result.count}</Numeral>
+            <AnimatedNumber
+              value={result.count}
+              className="text-3xl font-semibold"
+            />
             <span className="text-muted-foreground text-xs">
               {result.unit === "weeks" ? "wk streak" : "day streak"}
             </span>
@@ -34,12 +39,14 @@ export function StreakStat({
             <p className="text-muted-foreground mt-1 text-[11px]">{hint}</p>
           ) : null}
         </div>
-        <Flame
-          className={cn(
-            "size-7 shrink-0",
-            live ? "text-primary ember-flicker" : "text-muted-foreground/30",
-          )}
-        />
+        <Sparkles active={isMilestone(result.count)}>
+          <Flame
+            className={cn(
+              "size-7 shrink-0",
+              live ? "text-primary ember-flicker" : "text-muted-foreground/30",
+            )}
+          />
+        </Sparkles>
       </CardContent>
     </Card>
   );

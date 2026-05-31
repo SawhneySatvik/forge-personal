@@ -1,3 +1,4 @@
+import { HabitHeatmap } from "@/components/habit-heatmap";
 import { StreakStat } from "@/components/streak-stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { addDays, todayInTz } from "@/lib/date";
@@ -9,6 +10,7 @@ import {
   listSystemDesignTopics,
 } from "@/lib/queries";
 import { systemDesignStreak } from "@/lib/streaks";
+import type { DayKey } from "@/lib/types";
 import { AddTopicForm } from "./_components/add-topic-form";
 import { TopicRow } from "./_components/topic-row";
 
@@ -18,12 +20,15 @@ export default async function SystemDesignPage() {
 
   const [topics, logs] = await Promise.all([
     listSystemDesignTopics(),
-    getDailyLogsSince(addDays(today, -400)),
+    getDailyLogsSince(addDays(today, -364)),
   ]);
 
   const streak = systemDesignStreak(habitRecords(logs, "system_design"), today);
   const toCover = topics.filter((t) => !t.covered);
   const covered = topics.filter((t) => t.covered);
+
+  const studiedByDay: Record<DayKey, number> = {};
+  for (const r of habitRecords(logs, "system_design")) studiedByDay[r.day] = 1;
 
   return (
     <div className="space-y-6">
@@ -39,6 +44,21 @@ export default async function SystemDesignPage() {
         result={streak}
         hint="One topic per evening"
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Study activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HabitHeatmap
+            mode="count"
+            valueByDay={studiedByDay}
+            max={1}
+            endDay={today}
+            legend={false}
+          />
+        </CardContent>
+      </Card>
 
       <AddTopicForm />
 

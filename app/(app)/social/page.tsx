@@ -1,3 +1,4 @@
+import { HabitHeatmap } from "@/components/habit-heatmap";
 import { StreakStat } from "@/components/streak-stat";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import {
   habitRecords,
 } from "@/lib/queries";
 import { linkedinStreak, xStreak } from "@/lib/streaks";
+import type { DayKey } from "@/lib/types";
 import {
   SocialWeekGrid,
   type SocialDay,
@@ -50,6 +52,11 @@ export default async function SocialPage() {
     };
   });
 
+  const xByDay: Record<DayKey, number> = {};
+  for (const r of habitRecords(logs, "x")) xByDay[r.day] = 1;
+  const liByDay: Record<DayKey, number> = {};
+  for (const r of habitRecords(logs, "linkedin")) liByDay[r.day] = 1;
+
   return (
     <div className="space-y-6">
       <div>
@@ -87,6 +94,38 @@ export default async function SocialPage() {
             Tap a cell to toggle a post. Ringed cells are inside an active
             challenge window (daily X target).
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Posting activity</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-muted-foreground mb-2 text-xs font-medium">
+              X / Twitter
+            </p>
+            <HabitHeatmap
+              mode="count"
+              valueByDay={xByDay}
+              max={1}
+              endDay={today}
+              legend={false}
+            />
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-2 text-xs font-medium">
+              LinkedIn
+            </p>
+            <HabitHeatmap
+              mode="count"
+              valueByDay={liByDay}
+              max={1}
+              endDay={today}
+              legend={false}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

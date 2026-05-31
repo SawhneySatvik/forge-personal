@@ -1,8 +1,11 @@
 import { QuickLogDsa } from "@/app/(app)/dashboard/_components/quick-log-dsa";
-import { todayInTz } from "@/lib/date";
+import { HabitHeatmap } from "@/components/habit-heatmap";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { addDays, todayInTz } from "@/lib/date";
 import {
   DEFAULT_TIMEZONE,
   getActiveChallenges,
+  getDsaCountsByDay,
   getProfile,
   listDsaProblems,
 } from "@/lib/queries";
@@ -38,6 +41,7 @@ export default async function DsaPage({
 
   const today = todayInTz(profile?.timezone ?? DEFAULT_TIMEZONE);
   const activeChallenge = challenges[0] ?? null;
+  const countsByDay = await getDsaCountsByDay(addDays(today, -364));
 
   return (
     <div className="space-y-6">
@@ -49,6 +53,15 @@ export default async function DsaPage({
       </div>
 
       <QuickLogDsa today={today} challengeId={activeChallenge?.id ?? null} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HabitHeatmap mode="count" valueByDay={countsByDay} endDay={today} />
+        </CardContent>
+      </Card>
 
       <DsaFilters initial={{ topic, difficulty, solvedOnly }} />
 

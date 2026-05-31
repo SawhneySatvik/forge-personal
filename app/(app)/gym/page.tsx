@@ -1,3 +1,4 @@
+import { HabitHeatmap } from "@/components/habit-heatmap";
 import { StreakStat } from "@/components/streak-stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Numeral } from "@/components/ui/stat";
@@ -11,7 +12,6 @@ import {
 import { gymStreak } from "@/lib/streaks";
 import type { DayKey, GymStatus } from "@/lib/types";
 import { GymDayControl } from "./_components/gym-day-control";
-import { GymHeatmap } from "./_components/gym-heatmap";
 
 export default async function GymPage() {
   const profile = await getProfile();
@@ -58,7 +58,7 @@ export default async function GymPage() {
           <CardTitle className="text-base">Last 12 months</CardTitle>
         </CardHeader>
         <CardContent>
-          <GymHeatmap statusByDay={statusByDay} endDay={today} />
+          <HabitHeatmap mode="gym" statusByDay={statusByDay} endDay={today} />
         </CardContent>
       </Card>
 

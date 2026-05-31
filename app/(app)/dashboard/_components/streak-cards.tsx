@@ -1,7 +1,8 @@
 import { Flame } from "lucide-react";
+import { AnimatedNumber } from "@/components/fx/animated-number";
+import { GlowCard } from "@/components/fx/glow-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Numeral } from "@/components/ui/stat";
+import { CardContent } from "@/components/ui/card";
 import type { StreakResult } from "@/lib/streaks";
 import { cn } from "@/lib/utils";
 
@@ -19,10 +20,7 @@ export function StreakCards({ items }: { items: StreakCardData[] }) {
         const { count, unit, pendingCurrent } = item.result;
         const live = count > 0;
         return (
-          <Card
-            key={item.key}
-            className="transition-shadow hover:ring-foreground/20"
-          >
+          <GlowCard key={item.key}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-xs font-medium">
@@ -38,7 +36,10 @@ export function StreakCards({ items }: { items: StreakCardData[] }) {
                 />
               </div>
               <div className="mt-2 flex items-baseline gap-1">
-                <Numeral className="text-2xl font-semibold">{count}</Numeral>
+                <AnimatedNumber
+                  value={count}
+                  className="text-2xl font-semibold"
+                />
                 <span className="text-muted-foreground text-xs">
                   {unit === "weeks" ? "wk streak" : "day streak"}
                 </span>
@@ -56,7 +57,7 @@ export function StreakCards({ items }: { items: StreakCardData[] }) {
                 </p>
               )}
             </CardContent>
-          </Card>
+          </GlowCard>
         );
       })}
     </div>

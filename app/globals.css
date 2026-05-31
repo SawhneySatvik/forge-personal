@@ -145,6 +145,22 @@
   animation: ember-flicker 2.6s ease-in-out infinite;
 }
 
+/* Milestone sparkle burst (components/fx/sparkles.tsx). */
+@keyframes sparkle-ping {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
 /* Honour reduced-motion: kill ambient animation + transitions. */
 @media (prefers-reduced-motion: reduce) {
   *,

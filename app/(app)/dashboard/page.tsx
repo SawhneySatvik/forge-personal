@@ -1,14 +1,22 @@
+import { BentoGrid, BentoItem } from "@/components/fx/bento-grid";
+import { GlowCard } from "@/components/fx/glow-card";
+import { HabitHeatmap } from "@/components/habit-heatmap";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Numeral } from "@/components/ui/stat";
+import { habitsCompletedByDay } from "@/lib/analytics";
 import {
   activeWindows,
   getChallengeProgress,
+  getChallengeTracking,
   getCurrentPhase,
 } from "@/lib/challenges";
 import { addDays, todayInTz } from "@/lib/date";
 import {
   DEFAULT_TIMEZONE,
   getActiveChallenges,
+  getChallengeLogs,
   getDailyLogsSince,
   getProfile,
   getTodayDsaProblems,
@@ -21,9 +29,8 @@ import {
   systemDesignStreak,
   xStreak,
 } from "@/lib/streaks";
-import { Progress } from "@/components/ui/progress";
-import { Numeral } from "@/components/ui/stat";
 import { difficultyClass } from "@/lib/ui";
+import { ChallengeDayControl } from "@/app/(app)/challenges/_components/challenge-day-control";
 import { Checklist } from "./_components/checklist";
 import { QuickLogDsa } from "./_components/quick-log-dsa";
 import { StreakCards } from "./_components/streak-cards";
@@ -94,6 +101,19 @@ export default async function DashboardPage() {
     ? getChallengeProgress(activeChallenge, today, dsaDays)
     : null;
 
+  const activeChallengeLogs = activeChallenge
+    ? await getChallengeLogs(activeChallenge.id)
+    : [];
+  const challengeCheckIns = activeChallengeLogs
+    .filter((l) => l.done)
+    .map((l) => l.date);
+  const tracking = activeChallenge
+    ? getChallengeTracking(activeChallenge, today, challengeCheckIns)
+    : null;
+  const challengeDoneToday = activeChallengeLogs.some(
+    (l) => l.date === today && l.done,
+  );
+
   const friendlyDate = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
@@ -148,24 +168,57 @@ export default async function DashboardPage() {
               <Numeral>{progress.percentElapsed}%</Numeral> elapsed ·{" "}
               <Numeral>{progress.topicsCovered}</Numeral> active days logged
             </p>
+            {tracking ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+                <p className="text-muted-foreground text-xs">
+                  <Numeral>{tracking.streak.count}</Numeral>-day check-in streak ·{" "}
+                  <Numeral>{tracking.doneDays}</Numeral>/
+                  <Numeral>{tracking.daysElapsedInWindow}</Numeral> days done
+                </p>
+                <ChallengeDayControl
+                  challengeId={activeChallenge.id}
+                  today={today}
+                  initialDone={challengeDoneToday}
+                  streakCount={tracking.streak.count}
+                  pendingToday={tracking.streak.pendingCurrent}
+                />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Checklist
-          today={today}
-          streaks={streakByKey}
-          initial={{
-            dsa: todayLog?.dsa_done ?? false,
-            system_design: todayLog?.system_design_done ?? false,
-            x: todayLog?.posted_x ?? false,
-            linkedin: todayLog?.posted_linkedin ?? false,
-            gym: todayLog?.gym_status ?? null,
-          }}
-        />
-        <QuickLogDsa today={today} challengeId={activeChallenge?.id ?? null} />
-      </div>
+      <BentoGrid>
+        <BentoItem span={6} className="sm:col-span-2">
+          <GlowCard className="h-full p-4">
+            <p className="text-muted-foreground mb-3 text-xs font-medium">
+              Consistency — habits completed per day
+            </p>
+            <HabitHeatmap
+              mode="count"
+              valueByDay={habitsCompletedByDay(logs)}
+              max={5}
+              endDay={today}
+            />
+          </GlowCard>
+        </BentoItem>
+        <BentoItem span={3}>
+          <Checklist
+            today={today}
+            streaks={streakByKey}
+            initial={{
+              dsa: todayLog?.dsa_done ?? false,
+              system_design: todayLog?.system_design_done ?? false,
+              x: todayLog?.posted_x ?? false,
+              linkedin: todayLog?.posted_linkedin ?? false,
+              gym: todayLog?.gym_status ?? null,
+            }}
+          />
+        </BentoItem>
+        <BentoItem span={3}>
+          <QuickLogDsa today={today} challengeId={activeChallenge?.id ?? null} />
+        </BentoItem>
+      </BentoGrid>
 
       <Card>
         <CardHeader>
