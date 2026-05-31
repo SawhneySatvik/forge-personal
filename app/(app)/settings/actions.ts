@@ -64,3 +64,55 @@ export async function updateProfile(
   revalidatePath("/dashboard"); // timezone affects "today"
   return { ok: true };
 }
+
+// 3–30 chars, lowercase alphanumerics + hyphens, no leading/trailing hyphen.
+const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
+
+function slugifyHandle(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Set the public handle/bio and whether the profile is shareable at /u/[handle]. */
+export async function updatePublicProfile(
+  _prev: ProfileState,
+  formData: FormData,
+): Promise<ProfileState> {
+  const isPublic =
+    formData.get("is_public") === "on" || formData.get("is_public") === "true";
+  const rawHandle = opt(formData.get("public_handle"));
+  const bio = opt(formData.get("public_bio"));
+
+  let handle: string | null = null;
+  if (rawHandle) {
+    handle = slugifyHandle(rawHandle);
+    if (!HANDLE_RE.test(handle)) {
+      return { error: "Handle must be 3–30 letters, numbers or hyphens." };
+    }
+  }
+  if (isPublic && !handle) {
+    return { error: "Choose a public handle to make your profile public." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ is_public: isPublic, public_handle: handle, public_bio: bio ?? null })
+    .eq("user_id", user.id);
+  if (error) {
+    if (error.code === "23505") return { error: "That handle is already taken." };
+    return { error: error.message };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true };
+}

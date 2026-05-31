@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addDays, isDayKey } from "@/lib/date";
+import { addDays, isDayKey, todayInTz } from "@/lib/date";
 import { createClient } from "@/lib/supabase/server";
-import type { ChallengeStatus } from "@/lib/types";
+import { DEFAULT_TIMEZONE } from "@/lib/queries";
+import type { ChallengeStatus, DayKey } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type CreateResult =
@@ -50,6 +51,12 @@ async function getAuth() {
     data: { user },
   } = await supabase.auth.getUser();
   return { supabase, userId: user?.id ?? null };
+}
+
+/** Resolve "today" in the user's stored timezone (falls back to the default). */
+async function resolveToday(supabase: SupabaseClient): Promise<DayKey> {
+  const { data } = await supabase.from("profiles").select("timezone").maybeSingle();
+  return todayInTz((data?.timezone as string | undefined) ?? DEFAULT_TIMEZONE);
 }
 
 // Single-active rule: only one challenge is Active at a time (drives the X
@@ -221,5 +228,161 @@ export async function setChallengeDay(
   revalidatePath("/dashboard");
   revalidatePath("/challenges");
   revalidatePath(`/challenges/${challengeId}`);
+  return { ok: true };
+}
+
+/** Make a challenge publicly viewable (or private again) at /share/c/[id]. */
+export async function setChallengePublic(
+  id: string,
+  isPublic: boolean,
+): Promise<ActionResult> {
+  const { supabase, userId } = await getAuth();
+  if (!userId) return { ok: false, error: "Not authenticated." };
+  const { error } = await supabase
+    .from("challenges")
+    .update({ is_public: isPublic })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/challenges");
+  revalidatePath(`/challenges/${id}`);
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+/**
+ * Mark a checklist item (e.g. an SDE Sheet question) done or not. Marking done
+ * also flips daily_logs.dsa_done and auto-checks-in the parent challenge for the
+ * resolved day. Un-marking only flips the item — daily_logs stays "sticky true"
+ * (other solves may own the day), keeping the DSA streak stable. Never writes a
+ * dsa_problems row, so the DSA count heatmap can't double-count.
+ */
+export async function toggleChallengeItem(
+  itemId: string,
+  done: boolean,
+  date?: string,
+): Promise<ActionResult> {
+  if (date && !isDayKey(date)) return { ok: false, error: "Invalid date." };
+  const { supabase, userId } = await getAuth();
+  if (!userId) return { ok: false, error: "Not authenticated." };
+
+  const { data: item, error: selErr } = await supabase
+    .from("challenge_items")
+    .select("challenge_id")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (selErr) return { ok: false, error: selErr.message };
+  if (!item) return { ok: false, error: "Item not found." };
+  const challengeId = item.challenge_id as string;
+
+  const day = done ? (date ?? (await resolveToday(supabase))) : null;
+
+  const { error: updErr } = await supabase
+    .from("challenge_items")
+    .update({ done, done_date: day })
+    .eq("id", itemId)
+    .eq("user_id", userId);
+  if (updErr) return { ok: false, error: updErr.message };
+
+  if (done && day) {
+    const { error: dlErr } = await supabase
+      .from("daily_logs")
+      .upsert(
+        { user_id: userId, date: day, dsa_done: true },
+        { onConflict: "user_id,date" },
+      );
+    if (dlErr) return { ok: false, error: dlErr.message };
+
+    const { error: clErr } = await supabase
+      .from("challenge_logs")
+      .upsert(
+        { user_id: userId, challenge_id: challengeId, date: day, done: true },
+        { onConflict: "user_id,challenge_id,date" },
+      );
+    if (clErr) return { ok: false, error: clErr.message };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dsa");
+  revalidatePath("/challenges");
+  revalidatePath(`/challenges/${challengeId}`);
+  return { ok: true };
+}
+
+/** Mark an SDE-sheet question solved (+ optional note). Thin wrapper used by the
+ * quick-log picker and the /dsa fast path so sheet progress stays canonical. */
+export async function logSheetQuestion(
+  itemId: string,
+  opts: { note?: string | null; date?: string } = {},
+): Promise<ActionResult> {
+  const { supabase, userId } = await getAuth();
+  if (!userId) return { ok: false, error: "Not authenticated." };
+  if (opts.note !== undefined) {
+    const { error } = await supabase
+      .from("challenge_items")
+      .update({ note: opts.note })
+      .eq("id", itemId)
+      .eq("user_id", userId);
+    if (error) return { ok: false, error: error.message };
+  }
+  return toggleChallengeItem(itemId, true, opts.date);
+}
+
+/** Toggle several checklist items at once (batch entry / "mark N solved"). */
+export async function batchToggleChallengeItems(
+  itemIds: string[],
+  done: boolean,
+): Promise<ActionResult> {
+  const parsed = z.array(z.string().min(1)).min(1).safeParse(itemIds);
+  if (!parsed.success) return { ok: false, error: "No items selected." };
+  const ids = parsed.data;
+  const { supabase, userId } = await getAuth();
+  if (!userId) return { ok: false, error: "Not authenticated." };
+
+  const { data: items, error: selErr } = await supabase
+    .from("challenge_items")
+    .select("challenge_id")
+    .in("id", ids);
+  if (selErr) return { ok: false, error: selErr.message };
+
+  const day = done ? await resolveToday(supabase) : null;
+
+  const { error: updErr } = await supabase
+    .from("challenge_items")
+    .update({ done, done_date: day })
+    .in("id", ids)
+    .eq("user_id", userId);
+  if (updErr) return { ok: false, error: updErr.message };
+
+  const challengeIds = [
+    ...new Set((items ?? []).map((r) => r.challenge_id as string)),
+  ];
+
+  if (done && day) {
+    const { error: dlErr } = await supabase
+      .from("daily_logs")
+      .upsert(
+        { user_id: userId, date: day, dsa_done: true },
+        { onConflict: "user_id,date" },
+      );
+    if (dlErr) return { ok: false, error: dlErr.message };
+
+    if (challengeIds.length) {
+      const rows = challengeIds.map((cid) => ({
+        user_id: userId,
+        challenge_id: cid,
+        date: day,
+        done: true,
+      }));
+      const { error: clErr } = await supabase
+        .from("challenge_logs")
+        .upsert(rows, { onConflict: "user_id,challenge_id,date" });
+      if (clErr) return { ok: false, error: clErr.message };
+    }
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dsa");
+  revalidatePath("/challenges");
+  for (const cid of challengeIds) revalidatePath(`/challenges/${cid}`);
   return { ok: true };
 }

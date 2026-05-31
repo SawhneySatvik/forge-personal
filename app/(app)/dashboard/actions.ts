@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { logSheetQuestion } from "@/app/(app)/challenges/actions";
 import { isDayKey } from "@/lib/date";
 import { HABITS_BY_KEY } from "@/lib/habits";
 import { createClient } from "@/lib/supabase/server";
@@ -51,6 +52,9 @@ const LogSchema = z.object({
   date: z.string().refine(isDayKey, "Invalid date."),
   problem_url: z.string().optional(),
   challenge_id: z.string().optional(),
+  // When set, this is an SDE-sheet question: mark the checklist item done
+  // instead of inserting a free-form dsa_problems row.
+  item_id: z.string().optional(),
 });
 
 export type LogState = { ok?: boolean; error?: string; id?: string } | null;
@@ -74,11 +78,24 @@ export async function logDsaProblem(
     date: String(formData.get("date") ?? ""),
     problem_url: opt(formData.get("problem_url")),
     challenge_id: opt(formData.get("challenge_id")),
+    item_id: opt(formData.get("item_id")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const v = parsed.data;
+
+  // Picked from the SDE sheet → mark the canonical checklist item done (this
+  // flips daily_logs.dsa_done + auto-checks-in the challenge). No dsa_problems
+  // row, so the DSA count heatmap never double-counts the same solve.
+  if (v.item_id) {
+    const res = await logSheetQuestion(v.item_id, {
+      note: v.notes ?? null,
+      date: v.date,
+    });
+    if (!res.ok) return { error: res.error };
+    return { ok: true, id: v.item_id };
+  }
 
   const supabase = await createClient();
   const {
